@@ -4,29 +4,29 @@ import math
 import pickle
 import shutil
 from collections import Counter, defaultdict
+from string import ascii_lowercase as ALPHA
+from string import digits as DIGIT
 from textwrap import dedent
 from typing import Dict, Final, List, Tuple
 
-ALPHA: Final = "abcdefghijklmnopqrstuvwxyz"
-DIGIT: Final = "123456879"
 ALLOWED_CHARS: Final = ALPHA + DIGIT + "."
 
 
 def import_dict(filename: str) -> Dict[int, List[str]]:
 	if filename.endswith("pickle"):
-		with open(filename, "rb") as fpickle:
-			return pickle.load(fpickle)
+		with open(filename, "rb") as f_pickle:
+			return pickle.load(f_pickle)
 
 	if filename.endswith("json"):
-		with open(filename, "r") as fjson:
-			res = json.load(fjson)
+		with open(filename, "r") as f_json:
+			res = json.load(f_json)
 		ret = {}
 		for i, j in res.items():
 			ret[int(i)] = j
 		return ret
 
-	with open(filename, "r") as ftxt:
-		wordlist = ftxt.read().splitlines()
+	with open(filename, "r") as f_txt:
+		wordlist = f_txt.read().splitlines()
 	words = defaultdict(list)
 	for word in wordlist:
 		words[len(word)].append(word)
@@ -60,10 +60,10 @@ def set_numbers(words: List[str], pattern: str):
 	return matched
 
 
-def single_pattern(words: List[str], pattern: str, intial_config=None):
-	if intial_config is None:
-		intial_config = {}
-	for i, j in intial_config.items():
+def single_pattern(words: List[str], pattern: str, initial_config=None):
+	if initial_config is None:
+		initial_config = {}
+	for i, j in initial_config.items():
 		if i in DIGIT:
 			pattern = pattern.replace(i, j)
 	matched_letters = check_letters(words, pattern)
@@ -137,8 +137,8 @@ def main():
 	parser = argparse.ArgumentParser(description="Dictionary word solver",
 	                                 epilog=dedent("""
 			Pattern must the string input that needs to be solved.
-			Use letters(a-z and A-Z) for known entries, digits(1-9) for same entries and a dot(.)
-			for unknown entries. For example, the pattern "1a1" prints all 3 letter words
+Use letters(a-z and A-Z, FIXED) for known entries, digits(1-9, PARTIAL) for same
+entries and a dot(., WILDCARD) for unknown entries. For example, the pattern "1a1" prints all 3 letter words
 			which have same first and third letter, and the second entry is the letter `a`.
 
 			caution:
@@ -154,19 +154,20 @@ def main():
 			$ /path/to/python3 %(prog)s /path/to/dict "12121212121212"
 			[!] No results found """),
 	                                 formatter_class=argparse.RawTextHelpFormatter)
-	parser.add_argument(
-	    "dictionary",
-	    help="dictionary file location, support `txt`, `pickle` and `json` files",
-	)
-	parser.add_argument(
-	    "patterns",
-	    help="patterns to search",
-	    nargs="*",
-	)
-
+	parser.add_argument("dictionary", help="dictionary file location, support `txt`, `pickle` and `json` files")
+	parser.add_argument("patterns", help="patterns to search", nargs="*")
+	parser.add_argument("--rpp", help='repeat PARTIAL with PARTIAL, "21"="aa"', action="store_true")
+	parser.add_argument("--rwp", "--rpw", help='repeat WILDCARD with PARTIAL, ".1"="aa"', action="store_true", dest="rwp")
+	parser.add_argument("--rwf", "--rfw", help='repeat WILDCARD with FIXED, ".a"="aa"', action="store_true", dest="rwf")
+	parser.add_argument("--rpf", "--rfp", help='repeat PARTIAL with FIXED, "1a"="aa"', action="store_true", dest="rpf")
+	parser.add_argument("-v", help="print verbose logs. Stacks upto -vvv")
 	args = parser.parse_args()
+	print(args)
+	# exit()
 	words = import_dict(args.dictionary)
 	patterns = simplify_patterns(args.patterns)
+	if any(len(i) not in words for i in patterns):
+		raise ValueError("Dictionary does not contain any words of given length")
 
 	if len(patterns) == 0:
 		text = input("Enter pattern: ")
